@@ -174,7 +174,9 @@
     Your browser does not support the audio element.
 </audio>
 
-<div class="evm-ballot-unit">
+<div id="poster"><img src="p.jpg" width="380px" /></div>
+
+<div class="evm-ballot-unit" style="display: none;" id="evm">
     <div class="header">
         <div style="display: flex; align-items: center;">
             <span class="ready-text">Ready</span>
@@ -281,10 +283,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 light.classList.add('voted');
             }
             if (beepSound) {
-                // Rewind the sound to the beginning before playing, in case it was interrupted
                 beepSound.currentTime = 0; 
                 beepSound.play().catch(error => {
-                    // Catch errors if the user hasn't interacted with the page yet (browser restriction)
                     console.warn("Audio playback failed:", error);
                 });
             }
@@ -297,6 +297,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 3000); 
         });
     });
+
+    setTimeout(() => {
+        document.getElementById('poster').style.display = "none";
+        document.getElementById('evm').style.display = "block";
+}, 5000); 
+
 });
 </script>
 
