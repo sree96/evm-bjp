@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile EVM Ballot Unit Simulation</title>
+    <style>
+        /* Base styles optimized for mobile-like dimensions */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .evm-ballot-unit {
+            /* Reduced width for mobile view */
+            width: 90%; 
+            max-width: 380px;
+            height: 90vh; /* Use vertical height to fit more rows */
+            min-height: 600px; /* Minimum usable height */
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 8px 8px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid #c0c0c0;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box; /* Include padding in width/height */
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #ccc;
+            font-size: 12px; /* Smaller font for header */
+            font-weight: bold;
+            color: #333;
+        }
+
+        .ready-light, .ballot-light, .indicator-light {
+            width: 12px; /* Slightly smaller lights */
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 4px;
+            border: 1px solid #777;
+            box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.2);
+            background-color: #6c757d;
+        }
+        
+        #readyLight { 
+            background-color: #28a745; /* Green for on state */
+            box-shadow: 0 0 5px #28a745;
+        }
+
+        .candidate-list {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px; /* Tighter spacing for more rows */
+            overflow-y: auto; /* Allow scrolling if the content exceeds screen height */
+        }
+
+        .candidate-row {
+            display: flex;
+            align-items: center;
+            height: 45px; /* Taller rows for touch accessibility */
+            padding: 2px 0;
+            border-bottom: 1px dashed #bbb;
+        }
+        
+        .candidate-row:last-child {
+            border-bottom: none;
+        }
+
+        .candidate-info {
+            flex-grow: 1;
+            height: 100%;
+            background-color: #f7f7f7;
+            border-right: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            padding-left: 8px; /* Reduced padding */
+            font-size: 11px; /* Smaller font for candidate info */
+            color: #555;
+            border-radius: 3px 0 0 3px;
+        }
+
+        .indicator-light {
+            background-color: #8B0000; 
+            margin-left: 4px;
+        }
+
+        .vote-button {
+            width: 65px; /* Narrower button */
+            height: 40px; /* Taller button for better touch target */
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 8px;
+            font-size: 12px;
+            transition: background-color 0.1s, box-shadow 0.1s;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0; /* Prevents button from shrinking */
+        }
+
+        .vote-button:hover:not(:disabled) {
+            background-color: #138496;
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .vote-button:active:not(:disabled) {
+            background-color: #0c5460;
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        .vote-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* Voted state */
+        .indicator-light.voted {
+            background-color: #ffc107;
+            box-shadow: 0 0 8px #ffc107;
+        }
+
+        .status-message {
+            text-align: center;
+            padding-top: 10px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            border-top: 2px solid #ccc;
+            margin-top: 10px;
+            flex-shrink: 0;
+        }
+        
+        /* Media Query for larger screens (e.g., desktop/tablet landscape) */
+        @media (min-width: 600px) {
+            .evm-ballot-unit {
+                width: 320px;
+                height: 550px;
+                max-width: 320px;
+                padding: 20px;
+            }
+            .header {
+                font-size: 14px;
+            }
+            .vote-button {
+                width: 75px;
+                height: 35px;
+                font-size: 14px;
+            }
+            .candidate-info {
+                font-size: 12px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <audio id="beepSound" preload="auto">
+    <source src="beep.wav" type="audio/wav">
+    Your browser does not support the audio element.
+</audio>
+
+<div class="evm-ballot-unit">
+    <div class="header">
+        <div style="display: flex; align-items: center;">
+            <span class="ready-text">Ready</span>
+            <div class="ready-light" id="readyLight"></div>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <span class="ballot-text">Ballot Unit</span>
+            <div class="ballot-light" id="ballotLight"></div>
+        </div>
+    </div>
+    
+    <div class="candidate-list">
+        <div class="candidate-row">
+            <div class="candidate-info">
+                <div style="width: 100%;align-items: center;display: flex;justify-content: space-between;">
+                <p>1.&nbsp;<b>അനന്ദു മേലേവിള</b></p>
+                <span><img src="l.png" height="30px"></img></span></p></div>
+                </div>
+            <div class="indicator-light" id="light1"></div>
+            <button class="vote-button" data-candidate-id="1"></button>
+        </div>
+        
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+
+        <div class="candidate-row">
+            <div class="candidate-info"><p></p></div>
+            <div class="indicator-light"></div>
+            <button class="vote-button" data-candidate-id="10"></button>
+        </div>
+    </div>
+    
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const voteButtons = document.querySelectorAll('.vote-button');
+    const beepSound = document.getElementById('beepSound');
+
+    voteButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            if (button.disabled) {
+                return;
+            }
+
+            document.querySelectorAll('.indicator-light').forEach(light => {
+                light.classList.remove('voted');
+            });
+
+            const candidateId = button.getAttribute('data-candidate-id');
+            const light = document.getElementById(`light${candidateId}`);
+            const candidateInfo = button.closest('.candidate-row').querySelector('.candidate-info p').textContent;
+
+            if (light) {
+                light.classList.add('voted');
+            }
+            if (beepSound) {
+                // Rewind the sound to the beginning before playing, in case it was interrupted
+                beepSound.currentTime = 0; 
+                beepSound.play().catch(error => {
+                    // Catch errors if the user hasn't interacted with the page yet (browser restriction)
+                    console.warn("Audio playback failed:", error);
+                });
+            }
+
+            setTimeout(() => {
+                voteButtons.forEach(btn => btn.disabled = false);
+                if (light) {
+                    light.classList.remove('voted');
+                }
+            }, 3000); 
+        });
+    });
+});
+</script>
+
+</body>
+</html>
